@@ -68,7 +68,7 @@ class CIBC_PUC_V2(object):
         stat = abs(stat)
         return stat
 
-    def scoreCheck(self, score, levels):
+    def scoreCheck(self, score, levels = [95, 90]):
         ret = 0 #NoSig Test of any Level
         #set the confidence level to a spesific sig level sig : conf
         confidenceLevels = {
@@ -87,6 +87,13 @@ class CIBC_PUC_V2(object):
             else:
                 break
         return ret # Връща за кое ниво имаме тестване (0 - никое, 1 - малка буква (по-малкия процент) , 2-голяма (по-големия процент))
+
+
+    def calculate_write_SigTest(self, baseRow1, baseRow2, p1, p2, Columnletters):
+        lv = self.scoreCheck(self.getZscore(baseRow1, baseRow2, p1, p2))
+        print(lv)
+        
+
 
     #Still on progress (must be added the labels of the)
     def amIproperStatment(self, row, column):
@@ -111,8 +118,6 @@ class CIBC_PUC_V2(object):
 
         return myrow - emptyrows
 
-    
-        
 
     def returnPercentForCategory(self,baseRow, baseColumn, initialColumn, vsColumn, endRow):
         def getStep(arrayOfRows, initialColumn): #Find the step/difference bettwen the row of the category and the row of the percent
@@ -144,15 +149,7 @@ class CIBC_PUC_V2(object):
         #print(step)
 
         return arrRow, step
-        
-        
 
-            
-          
-
-        
-
-    
 
     def findSigTestColumn(self, Letter, baseRow, baseColumn):
         row = baseRow - 1
@@ -176,19 +173,31 @@ class CIBC_PUC_V2(object):
                 pass # Да се допише обхождане за да намери реда на буквите за тестване
             
 
-
-
     def cptSigTest(self, initialColumn, vsColumn, BaseName): # 'vsAll - run the initial column vs all columns(with Letters in)'
 
-        baseRow, baseColumn = myExcel.findMyBase(BaseName)
+        baseRow, baseColumn = myExcel.findMyBase(BaseName) # da go mahna ot tazi finkciq, za da ne lokiram bazata pri vqsko izpylnenie 
+        letters = [initialColumn, vsColumn]
+        print(letters)
+
 
         initialColumn = self.findSigTestColumn(initialColumn, baseRow, baseColumn)
         vsColumn = self.findSigTestColumn(vsColumn, baseRow, baseColumn)
 
         arrRows, step = self.returnPercentForCategory(baseRow, baseColumn, initialColumn, vsColumn, self.findHowManyRows(baseColumn))
 
-        for row in arrRows:
-            pass
+        for row in arrRows + step:
+
+            
+
+            base1 = sheet.Cells(baseRow, initialColumn).Value
+            base2 = sheet.Cells(baseRow, vsColumn).Value
+
+            p1 = sheet.Cells(row, initialColumn).Value * base1
+            p2 = sheet.Cells(row, vsColumn).Value * base2
+
+            #print(str(p1) + "_"+str(p2)+"_"+str(base1)+"_"+str(base2))
+
+            self.calculate_write_SigTest(base1, base2, p1,p2, letters)    
 
         print(initialColumn)
         print(vsColumn)
@@ -212,12 +221,12 @@ myExcel = CIBC_PUC_V2(r'C:\Users\Danie\Desktop\Puc\PUC.xlsx')
 sheet = myExcel.setActivSheet("PUC")
 print(sheet.Cells(16,2))
 
-#test = myExcel.scoreCheck( myExcel.getZscore(200, 220, 100, 140), [95, 90])
+#test = myExcel.scoreCheck( myExcel.getZscore(451,  475, 189, 290), [95, 90])
 #print(test)
 
 row, column =  myExcel.findMyBase("Base")
 print(row, column)
-myExcel.cptSigTest("F", "G", "Base")
+myExcel.cptSigTest("A", "C", "Base")
 #myExcel.returnPercentForCategory(14,1,7,8,50)
 
 myExcel.Close()
