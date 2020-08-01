@@ -1,4 +1,6 @@
 import numpy as np
+import os
+import re
 from win32com.client import Dispatch
 from scipy import stats
 from statsmodels.stats.proportion import proportions_ztest
@@ -46,9 +48,17 @@ class CIBC_PUC_V2(object):
                             continue
 
                     if FileFlag or row >= 99:
-                        # return set a erro/warning message
+                        # return set a error/warning message
                         break
 
+    def compareBigerNumber(self,array):
+        firstNumber = array[0]
+        secondNumber = array[1]
+
+        if firstNumber > secondNumber:
+            return 0
+        else:
+            return 1
 
 
     def getZscore(self, baseRow1, baseRow2, p1, p2):
@@ -76,7 +86,7 @@ class CIBC_PUC_V2(object):
                 temp = temp + 1
             else:
                 break
-        return ret
+        return ret # Връща за кое ниво имаме тестване (0 - никое, 1 - малка буква (по-малкия процент) , 2-голяма (по-големия процент))
 
     #Still on progress (must be added the labels of the)
     def amIproperStatment(self, row, column):
@@ -101,10 +111,93 @@ class CIBC_PUC_V2(object):
 
         return myrow - emptyrows
 
+    
+        
+
+    def returnPercentForCategory(self,baseRow, baseColumn, initialColumn, vsColumn, endRow):
+        def getStep(arrayOfRows, initialColumn): #Find the step/difference bettwen the row of the category and the row of the percent
+            checkRow = arrayOfRows[0]
+
+            if sheet.Cells(checkRow, initialColumn).Value > 0.0 and sheet.Cells(checkRow, initialColumn).Value < 1.0: #Most likly it's percent
+                return 0
+            else:
+                dif = arrayOfRows[1] - arrayOfRows [0]
+                if dif == 1:
+                    return 0
+                elif dif == 2:
+                    return 1
+                elif dif == 3:
+                    return 1
+                else:
+                    #Print Warning
+                    print("Warnign ! : getStep | difference must be bettwen 1-3")
+
+        tempRow = baseRow + 1
+        arrRow = np.array([])
+        for row in range(tempRow, endRow):
+            if sheet.Cells(row, baseColumn).Value != None:
+                #print(sheet.Cells(row, baseColumn))
+                arrRow = np.append(arrRow, [row])
+
+        step = getStep(arrRow, initialColumn)
+        #print(" ".join(str(x) for x in arrRow))
+        #print(step)
+
+        return arrRow, step
+        
+        
+
+            
+          
+
+        
+
+    
+
+    def findSigTestColumn(self, Letter, baseRow, baseColumn):
+        row = baseRow - 1
+        column = baseColumn + 1
+
+        if re.search("([A-Z])",  str(sheet.Cells(row, column))) != None:   #return None if fail (there is no letter in thes cell)
+            while True:
+                if re.search("(["+Letter.upper()+"])", str(sheet.Cells(row, column))) != None:
+                    return column
+                    break
+                else:
+                    column = column + 1
+
+                if column > 100:
+                    print("Warning please check -> Function: findSigTestColumn -> iterate over 100 column, no proper letter  ("+Letter+") found -> Row " + str(row))
+                    break
+        else:
+            row = 1
+            column = 2
+            if re.search("([A-Z])",  str(sheet.Cells(row, column))) != None:
+                pass # Да се допише обхождане за да намери реда на буквите за тестване
+            
+
+
+
+    def cptSigTest(self, initialColumn, vsColumn, BaseName): # 'vsAll - run the initial column vs all columns(with Letters in)'
+
+        baseRow, baseColumn = myExcel.findMyBase(BaseName)
+
+        initialColumn = self.findSigTestColumn(initialColumn, baseRow, baseColumn)
+        vsColumn = self.findSigTestColumn(vsColumn, baseRow, baseColumn)
+
+        arrRows, step = self.returnPercentForCategory(baseRow, baseColumn, initialColumn, vsColumn, self.findHowManyRows(baseColumn))
+
+        for row in arrRows:
+            pass
+
+        print(initialColumn)
+        print(vsColumn)
+
+
     def Close(self):
         #self.wb.Save
         self.wb.Close()
-        #self.xl.Quit()
+        self.xl.Quit()
 
 
 
@@ -115,13 +208,16 @@ class CIBC_PUC_V2(object):
 
 
 # Calling the Function / Testing
-myExcel = CIBC_PUC_V2(r"C:\Users\Daniel.Mladenov\Desktop\PUK\PUC.xlsx")
-sheet = myExcel.setActivSheet("0001")
-print(sheet.Cells(13,2))
+myExcel = CIBC_PUC_V2(r'C:\Users\Danie\Desktop\Puc\PUC.xlsx')
+sheet = myExcel.setActivSheet("PUC")
+print(sheet.Cells(16,2))
 
 #test = myExcel.scoreCheck( myExcel.getZscore(200, 220, 100, 140), [95, 90])
 #print(test)
 
 row, column =  myExcel.findMyBase("Base")
 print(row, column)
+myExcel.cptSigTest("F", "G", "Base")
+#myExcel.returnPercentForCategory(14,1,7,8,50)
+
 myExcel.Close()
